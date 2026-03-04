@@ -95,7 +95,8 @@ st.header("3. Validación Computacional en Fusion 360")
 col3, col4 = st.columns(2)
 
 with col3:
-    st.markdown("""
+    # Usamos f-string (f"") en lugar de .format()
+    st.markdown(f"""
     ### Configuración FEA
     1. Importa el archivo `.stl` generado en OpenSCAD a Fusion 360.
     2. Convierte la malla a cuerpo sólido (Mesh to BRep).
@@ -103,14 +104,15 @@ with col3:
     4. **Material:** Aplica `Steel, A36`.
     5. **Empotramiento:** Fija la cara posterior de la placa vertical.
     6. **Carga:** Aplica una fuerza de **{P} N** apuntando hacia abajo en la arista/cara final del brazo libre.
-    """.format(P=P))
+    """)
 
 with col4:
-    st.markdown("""
+    # Doble llave {{max}} para que Python no lo confunda con una variable
+    st.markdown(f"""
     ### Análisis Crítico
     * Refina la malla en la zona del empalme (fillet).
     * Ejecuta la simulación (Solve).
-    * Compara el **Esfuerzo de Von Mises Máximo** con el $\sigma_{max}$ teórico ({sigma:.2f} MPa).
-    """.format(sigma=sigma_max))
+    * Compara el **Esfuerzo de Von Mises Máximo** con el $\sigma_{{max}}$ teórico ({sigma_max:.2f} MPa).
+    """)
     
     st.info("💡 **Reto Maker:** Juega con el deslizador del 'Radio de empalme' (dejándolo en 0 mm vs 15 mm), regenera el STL y simula de nuevo. Verás matemáticamente por qué las esquinas de 90° exactos son el enemigo mortal de la resistencia de materiales.")
