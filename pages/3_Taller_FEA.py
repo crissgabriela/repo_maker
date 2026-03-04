@@ -1,97 +1,116 @@
 import streamlit as st
-import math
 
 st.set_page_config(page_title="Taller 3 | MakerBox", layout="wide")
 
 st.title("🖥️ Taller 3: Simulación FEA y Validación Teórica")
-st.markdown("**Objetivo:** Contrastar el cálculo analítico de esfuerzos flexionantes con el Análisis de Elementos Finitos (FEA) usando los criterios de Von Mises.")
+st.markdown("**Objetivo:** Contrastar el cálculo analítico de esfuerzos flexionantes con el Análisis de Elementos Finitos (FEA) usando los criterios de Von Mises, partiendo de una geometría generada por código.")
 st.divider()
 
-# --- SECCIÓN 1: CÁLCULO TEÓRICO (ENFOQUE HIBBELER) ---
-st.header("1. Cálculo Analítico Preliminar (Modelo de Viga en Voladizo)")
-st.write("Antes de simular la escuadra en Fusion 360, calcularemos el esfuerzo teórico en el empotramiento asumiendo una sección transversal rectangular pura.")
+# --- SECCIÓN 1: PARÁMETROS Y CÁLCULO TEÓRICO ---
+st.header("1. Parámetros de la Escuadra y Cálculo Analítico")
+st.write("Configura las dimensiones de la viga en voladizo (escuadra). El sistema calculará el esfuerzo teórico máximo asumiendo una sección transversal pura.")
 
 col1, col2 = st.columns([1, 1.5])
 
 with col1:
-    st.subheader("Parámetros del Problema")
+    st.subheader("Variables de Diseño")
     
-    # Material
     st.markdown("**Material:** Acero Estructural A36")
-    Sy = 250.0 # Límite elástico en MPa
-    st.info(f"Límite de Fluencia ($S_y$): {Sy} MPa")
+    Sy = 250.0 
     
-    # Cargas y Geometría
     P = st.number_input("Carga Aplicada P (N)", min_value=100.0, max_value=5000.0, value=500.0, step=100.0)
-    L = st.slider("Longitud del brazo L (mm)", 50.0, 300.0, 150.0, step=10.0)
-    base = st.slider("Base de la sección b (mm)", 5.0, 50.0, 10.0, step=1.0)
+    L = st.slider("Longitud del brazo libre L (mm)", 50.0, 300.0, 150.0, step=10.0)
+    base = st.slider("Ancho de la sección b (mm)", 5.0, 50.0, 10.0, step=1.0)
     altura = st.slider("Altura de la sección h (mm)", 10.0, 100.0, 30.0, step=2.0)
+    
+    st.markdown("**Parámetros de Manufactura**")
+    t_muro = st.slider("Espesor placa fijación (mm)", 5.0, 30.0, 15.0, step=1.0)
+    h_muro = st.slider("Altura placa fijación (mm)", 50.0, 150.0, 80.0, step=5.0)
+    r_fillet = st.slider("Radio de empalme interior (mm)", 0.0, 15.0, 5.0, step=1.0)
 
 with col2:
-    st.subheader("Ecuaciones de la Mecánica de Materiales")
+    st.subheader("Mecánica de Materiales (Teoría)")
     
-    # Cálculos teóricos
-    # 1. Momento Flector (N*mm)
     M = P * L
-    # 2. Inercia (mm^4)
     I = (base * (altura**3)) / 12.0
-    # 3. Distancia a la fibra más alejada (mm)
     c = altura / 2.0
-    # 4. Esfuerzo Máximo (MPa = N/mm^2)
     sigma_max = (M * c) / I
-    # 5. Factor de Seguridad
     factor_seguridad = Sy / sigma_max if sigma_max > 0 else 99.9
 
-    st.latex(r"M_{max} = P \cdot L")
-    st.latex(r"I = \frac{b \cdot h^3}{12}")
-    st.latex(r"\sigma_{max} = \frac{M_{max} \cdot c}{I}")
-    st.latex(r"\eta = \frac{S_y}{\sigma_{max}}")
+    st.latex(r"\sigma_{max} = \frac{M_{max} \cdot c}{I} \quad \rightarrow \quad \eta = \frac{S_y}{\sigma_{max}}")
     
-    st.markdown("### Resultados Analíticos")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Momento Máximo", f"{M/1000:.2f} N·m")
-    c2.metric("Esfuerzo Máximo ($\sigma$)", f"{sigma_max:.2f} MPa")
+    c1.metric("Momento Máx.", f"{M/1000:.2f} N·m")
+    c2.metric("Esfuerzo Máx. ($\sigma$)", f"{sigma_max:.2f} MPa")
     
-    # Alerta visual según el Factor de Seguridad
     if factor_seguridad < 1.0:
-        c3.metric("Factor de Seg. ($\eta$)", f"{factor_seguridad:.2f}", "Falla Plástica", delta_color="inverse")
-        st.error("⚠️ El diseño falla. El esfuerzo máximo supera el límite de fluencia del Acero A36.")
+        c3.metric("Factor Seg. ($\eta$)", f"{factor_seguridad:.2f}", "Falla", delta_color="inverse")
     elif factor_seguridad < 2.0:
-        c3.metric("Factor de Seg. ($\eta$)", f"{factor_seguridad:.2f}", "Margen Crítico", delta_color="off")
-        st.warning("⚡ El diseño es seguro, pero el factor de seguridad es bajo para aplicaciones dinámicas.")
+        c3.metric("Factor Seg. ($\eta$)", f"{factor_seguridad:.2f}", "Margen Crítico", delta_color="off")
     else:
-        c3.metric("Factor de Seg. ($\eta$)", f"{factor_seguridad:.2f}", "Diseño Seguro")
-        st.success("✅ Diseño estructuralmente seguro.")
+        c3.metric("Factor Seg. ($\eta$)", f"{factor_seguridad:.2f}", "Seguro")
 
 st.divider()
 
-# --- SECCIÓN 2: VALIDACIÓN DIGITAL (FUSION SIMULATION) ---
-st.header("2. Validación Computacional en Fusion 360")
-st.write("Ahora que conocemos el valor teórico esperado, llevaremos el modelo B-Rep al entorno de simulación para analizar la distribución real de esfuerzos de Von Mises, la cual incluye concentradores de esfuerzos (radios de acuerdo) que la teoría simple de vigas ignora.")
+# --- SECCIÓN 2: GENERACIÓN DE GEOMETRÍA CSG ---
+st.header("2. Generación de Geometría CSG (OpenSCAD)")
+st.write("Copia este script dinámico en OpenSCAD. Usaremos un perfil 2D extruido linealmente para crear la escuadra. Nota cómo integramos el empalme (fillet) restando un círculo a un cuadrado para evitar la singularidad de esfuerzos en la esquina interior.")
+
+codigo_openscad = f"""// --- PARÁMETROS GEOMÉTRICOS ---
+L = {L};          // Longitud del brazo libre
+b = {base};           // Ancho de la sección (extrusión)
+h = {altura};          // Altura de la sección del brazo
+t_muro = {t_muro};     // Espesor de la placa de fijación
+h_muro = {h_muro};     // Altura de la placa de fijación
+r_fillet = {r_fillet};   // Radio de empalme interior
+
+// --- GENERACIÓN DEL SÓLIDO ---
+// Extruimos el perfil 2D para generar el sólido 3D
+linear_extrude(height = b) {{
+    union() {{
+        // Brazo horizontal
+        translate([0, 0]) square([L, h]);
+        
+        // Placa de fijación vertical
+        translate([-t_muro, -(h_muro-h)/2]) square([t_muro, h_muro]);
+        
+        // Empalme (Fillet) interior para disipar esfuerzos
+        if (r_fillet > 0) {{
+            translate([0, h]) difference() {{
+                square([r_fillet, r_fillet]);
+                translate([r_fillet, r_fillet]) circle(r=r_fillet, $fn=50);
+            }}
+        }}
+    }}
+}}
+"""
+st.code(codigo_openscad, language="openscad")
+st.caption("Instrucciones: Pega en OpenSCAD -> Presiona F6 (Renderizar) -> Presiona F7 (Exportar STL).")
+
+st.divider()
+
+# --- SECCIÓN 3: VALIDACIÓN DIGITAL (FUSION SIMULATION) ---
+st.header("3. Validación Computacional en Fusion 360")
 
 col3, col4 = st.columns(2)
 
 with col3:
     st.markdown("""
-    ### Configuración del Estudio Estático
-    Sigue estrictamente este flujo de trabajo en el espacio **Simulation**:
-    
-    1. **Study:** Selecciona *Static Stress*.
-    2. **Materials:** Asigna `Steel, A36` al cuerpo de la escuadra.
-    3. **Constraints (Empotramiento):** Aplica una restricción *Fixed* en la cara posterior (la que iría unida a la pared o brida).
-    4. **Loads (Cargas):** Aplica una fuerza de magnitud `P` (ej. 500 N) en la perforación del extremo libre. Asegúrate de que el vector de fuerza apunte hacia abajo (eje Y o Z negativo, según tu sistema de coordenadas).
-    5. **Contacts:** Si tienes más de un cuerpo, usa *Automatic Contacts*. En este caso, al ser una sola pieza sólida, sáltate este paso.
-    """)
+    ### Configuración FEA
+    1. Importa el archivo `.stl` generado en OpenSCAD a Fusion 360.
+    2. Convierte la malla a cuerpo sólido (Mesh to BRep).
+    3. Pasa al espacio de trabajo **Simulation** y elige *Static Stress*.
+    4. **Material:** Aplica `Steel, A36`.
+    5. **Empotramiento:** Fija la cara posterior de la placa vertical.
+    6. **Carga:** Aplica una fuerza de **{P} N** apuntando hacia abajo en la arista/cara final del brazo libre.
+    """.format(P=P))
 
 with col4:
     st.markdown("""
-    ### Solución y Análisis de Resultados
-    Antes de presionar *Solve*, debemos asegurar la calidad de nuestro modelo matemático:
+    ### Análisis Crítico
+    * Refina la malla en la zona del empalme (fillet).
+    * Ejecuta la simulación (Solve).
+    * Compara el **Esfuerzo de Von Mises Máximo** con el $\sigma_{max}$ teórico ({sigma:.2f} MPa).
+    """.format(sigma=sigma_max))
     
-    * **Convergencia de Malla (Mesh):** Ve a la configuración de la malla y reduce el tamaño de los elementos en los radios interiores (donde esperamos concentración de esfuerzos).
-    * **Solve:** Ejecuta la simulación (puedes usar el solver en la nube o local).
-    * **Lectura de Resultados:**
-        * Cambia el gráfico a **Esfuerzo de Von Mises**. ¿Cuál es el valor máximo? ¿Se acerca al $\sigma_{max}$ analítico?
-        * Cambia el gráfico a **Safety Factor**. Compara el mínimo de la simulación con nuestro $\eta$ calculado arriba.
-    """)
-    st.info("💡 **Pregunta de Taller:** El esfuerzo simulado suele ser ligeramente mayor al calculado a mano. ¿Por qué ocurre esto? (Pista: Piensa en los concentradores de esfuerzos en las esquinas interiores).")
+    st.info("💡 **Reto Maker:** Juega con el deslizador del 'Radio de empalme' (dejándolo en 0 mm vs 15 mm), regenera el STL y simula de nuevo. Verás matemáticamente por qué las esquinas de 90° exactos son el enemigo mortal de la resistencia de materiales.")
