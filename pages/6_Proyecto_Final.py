@@ -134,7 +134,7 @@ with col4:
     * Descarga el archivo `.stl`.
     """)
     # Aquí puedes poner el enlace a tu HTML alojado en GitHub Pages
-    st.info("👉 **[Abrir Generador de Hélices MakerBox](https://github.com/crissgabriela/repo_maker/blob/main/webnaca.html)**")
+    st.info("👉 **[Abrir Generador de Hélices MakerBox](https://crissgabriela.github.io/repo_maker/webnaca.html)**")
 
 with col5:
     st.markdown("""
